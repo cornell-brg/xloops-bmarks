@@ -1,0 +1,113 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+strsearch_intdeps  = @strsearch_intdeps@
+strsearch_cppflags = @strsearch_cppflags@
+strsearch_ldflags  = @strsearch_ldflags@
+strsearch_libs     = @strsearch_libs@
+
+strsearch_hdrs = \
+  strsearch-scalar.h \
+  strsearch-xloops.h \
+
+strsearch_srcs = \
+
+strsearch_clang_srcs = \
+  strsearch-scalar.cc \
+  strsearch-xloops.cc \
+
+strsearch_install_prog_srcs = \
+  strsearch.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+strsearch_verify_outs := $(patsubst %.cc, %.out, $(strsearch_install_prog_srcs))
+$(strsearch_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --alg str --verify 2>&1 | tee $@
+	$(RUN) $(RUNFLAGS) ./$< --impl all --alg doc --verify 2>&1 | tee -a $@
+
+outs += $(strsearch_verify_outs)
+junk += $(strsearch_verify_outs)
+check-strsearch : $(strsearch_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+STRSEARCH_CLANG       = @strsearch_clang@
+STRSEARCH_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+STRSEARCH_CLANG_FLAGS = $(STRSEARCH_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+strsearch_clang_objs := $(patsubst %.cc, %.o, $(strsearch_clang_srcs))
+strsearch_clang_deps := $(patsubst %.cc, %.d, $(strsearch_clang_srcs))
+
+ifneq ($(STRSEARCH_CLANG),no)
+
+$(strsearch_clang_objs) : %.o : %.cc
+	$(STRSEARCH_CLANG) $(STRSEARCH_CLANG_FLAGS) -c $<
+
+strsearch_objs += $(strsearch_clang_objs)
+strsearch_deps += $(strsearch_clang_deps)
+strsearch_junk += $(strsearch_clang_objs) $(strsearch_clang_deps)
+
+else
+strsearch_srcs += $(strsearch_clang_srcs)
+endif
+
+#-------------------------------------------------------------------------
+# Rules for preprocessing C++ sources with maven-vtcpp
+#-------------------------------------------------------------------------
+# If we are compiling for maven then we actually run the preprocessor,
+# otherwise we just copy the .vtcc file to a .cc file in the build
+# directory since no preprocessing is necessary.
+
+# Preprocessor is set from configure, we need to run the preprocessor
+# with the exact same flags we will be using to actually compile the
+# generated source.
+
+STRSEARCH_VTCPP       = @strsearch_vtcpp@
+STRSEARCH_VTCPP_FLAGS = $(CXXFLAGS) -MMD -MP -I. $(CPPFLAGS)
+
+# Preprocessing template
+#  $(1) : source type (test,prog,install_prog)
+#  $(2) : extra cppflags
+
+define strsearch_vtcpp_template
+
+$(1)_vtcxx_srcs    := $$(filter %.vtcc, $$($(1)_srcs))
+$(1)_vtcxx_gensrcs := $$(patsubst %.vtcc, %.cc,   $$($(1)_vtcxx_srcs))
+$(1)_vtcxx_deps    := $$(patsubst %.vtcc, %.cc.d, $$($(1)_vtcxx_srcs))
+
+$$($(1)_vtcxx_gensrcs) : %.cc : %.vtcc
+ifneq ($(STRSEARCH_VTCPP),no)
+	$(STRSEARCH_VTCPP) $(STRSEARCH_VTCPP_FLAGS) $(strsearch_cppflags) $(2) -c $$<
+else
+	cp $$< $$@
+endif
+
+$(1)_srcs   := $$(filter-out %.vtcc, $$($(1)_srcs))
+$(1)_srcs   += $$($(1)_vtcxx_gensrcs)
+strsearch_deps += $$($(1)_vtcxx_deps)
+strsearch_junk += $$($(1)_vtcxx_gensrcs) $$($(1)_vtcxx_deps)
+
+endef
+
+# Instantiate preprocessing template for the various types of sources
+# including unit tests, C++ programs, and installed C++ programs
+
+$(eval $(call strsearch_vtcpp_template,strsearch_test,$(utst_cppflags)))
+$(eval $(call strsearch_vtcpp_template,strsearch))
+$(eval $(call strsearch_vtcpp_template,strsearch_prog))
+$(eval $(call strsearch_vtcpp_template,strsearch_install_prog))
+

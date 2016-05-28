@@ -1,0 +1,67 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+huffman_intdeps  = @huffman_intdeps@
+huffman_cppflags = @huffman_cppflags@
+huffman_ldflags  = @huffman_ldflags@
+huffman_libs     = @huffman_libs@
+
+huffman_hdrs = \
+  huffman-scalar.h \
+	huffman-xloops.h \
+
+huffman_srcs = \
+
+huffman_clang_srcs = \
+	huffman-scalar.cc \
+	huffman-xloops.cc \
+
+huffman_install_prog_srcs = \
+  huffman.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+huffman_verify_outs := $(patsubst %.cc, %.out, $(huffman_install_prog_srcs))
+$(huffman_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(huffman_verify_outs)
+junk += $(huffman_verify_outs)
+check-huffman : $(huffman_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+HUFFMAN_CLANG       = @huffman_clang@
+HUFFMAN_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+HUFFMAN_CLANG_FLAGS = $(HUFFMAN_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+huffman_clang_objs := $(patsubst %.cc, %.o, $(huffman_clang_srcs))
+huffman_clang_deps := $(patsubst %.cc, %.d, $(huffman_clang_srcs))
+
+ifneq ($(HUFFMAN_CLANG),no)
+
+$(huffman_clang_objs) : %.o : %.cc
+	$(HUFFMAN_CLANG) $(HUFFMAN_CLANG_FLAGS) -c $<
+
+huffman_objs += $(huffman_clang_objs)
+huffman_deps += $(huffman_clang_deps)
+huffman_junk += $(huffman_clang_objs) $(huffman_clang_deps)
+
+else
+huffman_srcs += $(huffman_clang_srcs)
+endif
+
+

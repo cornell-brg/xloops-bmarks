@@ -1,0 +1,67 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+covariance_intdeps  = @covariance_intdeps@
+covariance_cppflags = @covariance_cppflags@
+covariance_ldflags  = @covariance_ldflags@
+covariance_libs     = @covariance_libs@
+
+covariance_hdrs = \
+  covariance-scalar.h \
+	covariance-xloops.h \
+
+covariance_srcs = \
+
+covariance_clang_srcs = \
+	covariance-scalar.cc \
+	covariance-xloops.cc \
+
+covariance_install_prog_srcs = \
+  covariance.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+covariance_verify_outs := $(patsubst %.cc, %.out, $(covariance_install_prog_srcs))
+$(covariance_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(covariance_verify_outs)
+junk += $(covariance_verify_outs)
+check-covariance : $(covariance_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+COVARIANCE_CLANG       = @covariance_clang@
+COVARIANCE_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+COVARIANCE_CLANG_FLAGS = $(COVARIANCE_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+covariance_clang_objs := $(patsubst %.cc, %.o, $(covariance_clang_srcs))
+covariance_clang_deps := $(patsubst %.cc, %.d, $(covariance_clang_srcs))
+
+ifneq ($(COVARIANCE_CLANG),no)
+
+$(covariance_clang_objs) : %.o : %.cc
+	$(COVARIANCE_CLANG) $(COVARIANCE_CLANG_FLAGS) -c $<
+
+covariance_objs += $(covariance_clang_objs)
+covariance_deps += $(covariance_clang_deps)
+covariance_junk += $(covariance_clang_objs) $(covariance_clang_deps)
+
+else
+covariance_srcs += $(covariance_clang_srcs)
+endif
+
+

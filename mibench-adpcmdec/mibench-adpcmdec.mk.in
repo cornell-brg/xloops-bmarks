@@ -1,0 +1,74 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+mibench_adpcmdec_intdeps  = @mibench_adpcmdec_intdeps@
+mibench_adpcmdec_cppflags = @mibench_adpcmdec_cppflags@
+mibench_adpcmdec_ldflags  = @mibench_adpcmdec_ldflags@
+mibench_adpcmdec_libs     = @mibench_adpcmdec_libs@
+
+mibench_adpcmdec_hdrs = \
+  mibench-adpcmdec-scalar.h \
+  mibench-adpcmdec-xloops.h \
+
+mibench_adpcmdec_srcs = \
+
+mibench_adpcmdec_clang_srcs = \
+	mibench-adpcmdec-scalar.cc \
+	mibench-adpcmdec-xloops.cc \
+
+mibench_adpcmdec_clang_asm_srcs = \
+	#mibench-adpcmdec-xloops-opt.S \
+
+mibench_adpcmdec_install_prog_srcs = \
+  mibench-adpcmdec.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+mibench_adpcmdec_verify_outs := $(patsubst %.cc, %.out, $(mibench_adpcmdec_install_prog_srcs))
+$(mibench_adpcmdec_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(mibench_adpcmdec_verify_outs)
+junk += $(mibench_adpcmdec_verify_outs)
+check-mibench_adpcmdec : $(mibench_adpcmdec_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+MIBENCH_ADPCMDEC_CLANG       = @mibench_adpcmdec_clang@
+MIBENCH_ADPCMDEC_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+MIBENCH_ADPCMDEC_CLANG_FLAGS = $(MIBENCH_ADPCMDEC_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN -mllvm -disable-loop-check
+
+mibench_adpcmdec_clang_objs     := $(patsubst %.cc, %.o, $(mibench_adpcmdec_clang_srcs))
+mibench_adpcmdec_clang_asm_objs := $(patsubst %.S,  %.o, $(mibench_adpcmdec_clang_asm_srcs))
+mibench_adpcmdec_clang_deps     := $(patsubst %.cc, %.d, $(mibench_adpcmdec_clang_srcs))
+
+ifneq ($(MIBENCH_ADPCMDEC_CLANG),no)
+
+$(mibench_adpcmdec_clang_objs) : %.o : %.cc
+	$(MIBENCH_ADPCMDEC_CLANG) $(MIBENCH_ADPCMDEC_CLANG_FLAGS) -c $<
+
+$(mibench_adpcmdec_clang_asm_objs) : %.o : %.S
+	$(CC) $(CXX_FLAGS) -c $<
+
+mibench_adpcmdec_objs += $(mibench_adpcmdec_clang_objs) $(mibench_adpcmdec_clang_asm_objs)
+mibench_adpcmdec_deps += $(mibench_adpcmdec_clang_deps)
+mibench_adpcmdec_junk += $(mibench_adpcmdec_clang_objs) $(mibench_adpcmdec_clang_asm_objs) $(mibench_adpcmdec_clang_deps)
+
+else
+mibench_adpcmdec_srcs += $(mibench_adpcmdec_clang_srcs) $(mibench_adpcmdec_clang_asm_srcs)
+endif
+
+

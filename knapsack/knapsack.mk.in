@@ -1,0 +1,88 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+knapsack_intdeps  = @knapsack_intdeps@
+knapsack_cppflags = @knapsack_cppflags@
+knapsack_ldflags  = @knapsack_ldflags@
+knapsack_libs     = @knapsack_libs@
+
+knapsack_srcs = \
+
+knapsack_clang_srcs = \
+	knapsack-scalar.cc \
+	knapsack-xloops.cc \
+
+knapsack_install_prog_srcs = \
+  knapsack.cc \
+
+# Explicit LLVM bitcode files
+
+knapsack_llc_srcs = \
+
+knapsack_llc_lls = \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+knapsack_verify_outs := $(patsubst %.cc, %.out, $(knapsack_install_prog_srcs))
+$(knapsack_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(knapsack_verify_outs)
+junk += $(knapsack_verify_outs)
+check-ubmark : $(knapsack_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+#
+# Note: ADDITIONAL_FLAGS captures the include paths to other external
+# project dependencies
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+KNAPSACK_CLANG            = @knapsack_clang@
+KNAPSACK_CXXFLAGS         = $(filter-out -g, $(CXXFLAGS))
+KNAPSACK_ADDITIONAL_FLAGS = $(filter %/stdx, $(knapsack_cppflags))
+KNAPSACK_CLANG_FLAGS      = $(KNAPSACK_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) \
+                          $(KNAPSACK_ADDITIONAL_FLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+KNAPSACK_LLC_FLAGS        = -O3 -march=pisael -relocation-model=static
+
+knapsack_clang_objs   := $(patsubst %.cc, %.o, $(knapsack_clang_srcs))
+knapsack_clang_deps   := $(patsubst %.cc, %.d, $(knapsack_clang_srcs))
+knapsack_llc_asms     := $(patsubst %.ll, %.s, $(knapsack_llc_lls))
+knapsack_llc_objs     := $(patsubst %.s,  %.o, $(knapsack_llc_asms))
+
+ifneq ($(KNAPSACK_CLANG),no)
+
+$(knapsack_clang_objs) : %.o : %.cc
+	$(KNAPSACK_CLANG) $(KNAPSACK_CLANG_FLAGS) -c $<
+
+$(knapsack_llc_asms) : %.s : %.ll
+	llc $(KNAPSACK_LLC_FLAGS) $< -o $@
+
+$(knapsack_llc_objs) : %.o : %.s
+	$(CC) -O3 -c $<
+
+knapsack_objs += $(knapsack_clang_objs)
+knapsack_objs += $(knapsack_llc_objs)
+knapsack_deps += $(knapsack_clang_deps)
+knapsack_junk += \
+  $(knapsack_clang_objs) \
+  $(knapsack_clang_deps) \
+  $(knapsack_llc_asms) \
+  $(knapsack_llc_objs) \
+
+else
+knapsack_srcs += $(knapsack_clang_srcs) $(knapsack_llc_srcs)
+endif
+
+

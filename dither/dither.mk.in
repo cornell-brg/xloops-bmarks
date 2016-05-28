@@ -1,0 +1,158 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+dither_intdeps  = @dither_intdeps@
+dither_cppflags = @dither_cppflags@
+dither_ldflags  = @dither_ldflags@
+dither_libs     = @dither_libs@
+
+dither_hdrs = \
+  dither-scalar.h \
+  dither-xloops.h \
+  dither-xloops-reg.h \
+  dither-xloops-reg-opt.h \
+  dither-xloops-mem.h \
+
+dither_srcs = \
+
+dither_clang_srcs = \
+  dither-scalar.cc \
+
+# shreesha: dither xfor.u-algorithm transformed implementation when
+# compiled with LSR-add*.xi/subu.xi algorithms produces incorrect code
+# where the IV ends up being derived from a *.xi instruction due to
+# register pressure. Disabling LSR generates correct code and hence, we
+# need a seperate source
+dither_clang_no_lsr_srcs = \
+  dither-xloops.cc \
+
+# Explicit LLVM bitcode files
+
+dither_llc_srcs = \
+  dither-xloops-reg.cc \
+  dither-xloops-reg-opt.cc \
+  dither-xloops-mem.cc \
+
+dither_llc_lls = \
+  dither-xloops-reg.ll \
+
+dither_clang_asm_srcs = \
+  dither-xloops-reg-opt.s \
+  dither-xloops-mem.s \
+
+dither_install_prog_srcs = \
+  dither.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+dither_verify_outs := $(patsubst %.cc, %.out, $(dither_install_prog_srcs))
+$(dither_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(dither_verify_outs)
+junk += $(dither_verify_outs)
+check-dither : $(dither_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+DITHER_CLANG       = @dither_clang@
+DITHER_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+DITHER_CLANG_FLAGS = $(DITHER_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+DITHER_LLC_FLAGS   = -O3 -march=pisael -relocation-model=static
+
+dither_clang_objs        := $(patsubst %.cc, %.o, $(dither_clang_srcs))
+dither_clang_no_lsr_objs := $(patsubst %.cc, %.o, $(dither_clang_no_lsr_srcs))
+dither_clang_deps        := $(patsubst %.cc, %.d, $(dither_clang_srcs))
+dither_llc_asms          := $(patsubst %.ll, %.s, $(dither_llc_lls))
+dither_llc_objs          := $(patsubst %.s,  %.o, $(dither_llc_asms))
+dither_clang_asm_objs    := $(patsubst %.s,  %.o, $(dither_clang_asm_srcs))
+
+ifneq ($(DITHER_CLANG),no)
+
+$(dither_clang_objs) : %.o : %.cc
+	$(DITHER_CLANG) $(DITHER_CLANG_FLAGS) -c $<
+
+# shreesha: disable lsr pass for this compilation
+$(dither_clang_no_lsr_objs) : %.o : %.cc
+	$(DITHER_CLANG) $(DITHER_CLANG_FLAGS) -c -mllvm -disable-lsr $<
+
+$(dither_llc_asms) : %.s : %.ll
+	llc $(DITHER_LLC_FLAGS) $< -o $@
+
+$(dither_llc_objs) : %.o : %.s
+	$(CC) -O3 -c $<
+
+$(dither_clang_asm_objs) : %.o : %.s
+	$(CC) $(CXX_FLAGS) -c $<
+
+dither_objs += $(dither_clang_objs)
+dither_objs += $(dither_clang_no_lsr_objs)
+dither_objs += $(dither_llc_objs)
+dither_objs += $(dither_clang_asm_objs)
+dither_deps += $(dither_clang_deps)
+dither_junk += $(dither_clang_objs) $(dither_clang_deps) $(dither_llc_asms) $(dither_llc_asms)
+dither_junk += $(dither_clang_asm_objs) $(dither_clang_no_lsr_objs)
+
+else
+dither_srcs += $(dither_clang_srcs) $(dither_llc_srcs) $(dither_clang_no_lsr_srcs)
+endif
+
+#-------------------------------------------------------------------------
+# Rules for preprocessing C++ sources with maven-vtcpp
+#-------------------------------------------------------------------------
+# If we are compiling for maven then we actually run the preprocessor,
+# otherwise we just copy the .vtcc file to a .cc file in the build
+# directory since no preprocessing is necessary.
+
+# Preprocessor is set from configure, we need to run the preprocessor
+# with the exact same flags we will be using to actually compile the
+# generated source.
+
+DITHER_VTCPP       = @dither_vtcpp@
+DITHER_VTCPP_FLAGS = $(CXXFLAGS) -MMD -MP -I. $(CPPFLAGS)
+
+# Preprocessing template
+#  $(1) : source type (test,prog,install_prog)
+#  $(2) : extra cppflags
+
+define dither_vtcpp_template
+
+$(1)_vtcxx_srcs    := $$(filter %.vtcc, $$($(1)_srcs))
+$(1)_vtcxx_gensrcs := $$(patsubst %.vtcc, %.cc,   $$($(1)_vtcxx_srcs))
+$(1)_vtcxx_deps    := $$(patsubst %.vtcc, %.cc.d, $$($(1)_vtcxx_srcs))
+
+$$($(1)_vtcxx_gensrcs) : %.cc : %.vtcc
+ifneq ($(DITHER_VTCPP),no)
+	$(DITHER_VTCPP) $(DITHER_VTCPP_FLAGS) $(dither_cppflags) $(2) -c $$<
+else
+	cp $$< $$@
+endif
+
+$(1)_srcs  := $$(filter-out %.vtcc, $$($(1)_srcs))
+$(1)_srcs  += $$($(1)_vtcxx_gensrcs)
+dither_deps += $$($(1)_vtcxx_deps)
+dither_junk += $$($(1)_vtcxx_gensrcs) $$($(1)_vtcxx_deps)
+
+endef
+
+# Instantiate preprocessing template for the various types of sources
+# including unit tests, C++ programs, and installed C++ programs
+
+$(eval $(call dither_vtcpp_template,dither_test,$(utst_cppflags)))
+$(eval $(call dither_vtcpp_template,dither))
+$(eval $(call dither_vtcpp_template,dither_prog))
+$(eval $(call dither_vtcpp_template,dither_install_prog))
+

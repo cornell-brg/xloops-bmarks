@@ -1,0 +1,122 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+kmeans_intdeps  = @kmeans_intdeps@
+kmeans_cppflags = @kmeans_cppflags@
+kmeans_ldflags  = @kmeans_ldflags@
+kmeans_libs     = @kmeans_libs@
+
+kmeans_hdrs = \
+  kmeans-scalar.h \
+  kmeans-xloops.h \
+  kmeans-xloops-opt.h \
+
+kmeans_srcs = \
+
+kmeans_test_srcs = \
+  kmeans-scalar.t.cc \
+
+kmeans_clang_srcs = \
+  kmeans-scalar.cc \
+  kmeans-xloops.cc \
+  kmeans-xloops-opt.cc \
+
+kmeans_install_prog_srcs = \
+  kmeans.cc \
+
+#-------------------------------------------------------------------------
+# Extra rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+kmeans_verify_outs := $(patsubst %.cc, %.out, $(kmeans_install_prog_srcs))
+$(kmeans_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(kmeans_verify_outs)
+junk += $(kmeans_verify_outs)
+check-kmeans : $(kmeans_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+# shreesha: ADDITIONAL_FLAGS captures the include paths to external project
+# dependencies
+
+KMEANS_CLANG            = @kmeans_clang@
+KMEANS_CXXFLAGS         = $(filter-out -g, $(CXXFLAGS))
+KMEANS_ADDITIONAL_FLAGS = $(kmeans_cppflags)
+KMEANS_CLANG_FLAGS      = $(KMEANS_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) \
+													$(KMEANS_ADDITIONAL_FLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+kmeans_clang_objs := $(patsubst %.cc, %.o, $(kmeans_clang_srcs))
+kmeans_clang_deps := $(patsubst %.cc, %.d, $(kmeans_clang_srcs))
+
+ifneq ($(KMEANS_CLANG),no)
+
+$(kmeans_clang_objs) : %.o : %.cc
+	$(KMEANS_CLANG) $(KMEANS_CLANG_FLAGS) -c $<
+
+kmeans_objs += $(kmeans_clang_objs)
+kmeans_deps += $(kmeans_clang_deps)
+kmeans_junk += $(kmeans_clang_objs) $(kmeans_clang_deps)
+
+else
+kmeans_srcs += $(kmeans_clang_srcs)
+endif
+
+#-------------------------------------------------------------------------
+# Rules for preprocessing C++ sources with maven-vtcpp
+#-------------------------------------------------------------------------
+# If we are compiling for maven then we actually run the preprocessor,
+# otherwise we just copy the .vtcc file to a .cc file in the build
+# directory since no preprocessing is necessary.
+
+# Preprocessor is set from configure, we need to run the preprocessor
+# with the exact same flags we will be using to actually compile the
+# generated source.
+
+KMEANS_VTCPP       = @kmeans_vtcpp@
+KMEANS_VTCPP_FLAGS = $(CXXFLAGS) -MMD -MP -I. $(CPPFLAGS)
+
+# Preprocessing template
+#  $(1) : source type (test,prog,install_prog)
+#  $(2) : extra cppflags
+
+define kmeans_vtcpp_template
+
+$(1)_vtcxx_srcs    := $$(filter %.vtcc, $$($(1)_srcs))
+$(1)_vtcxx_gensrcs := $$(patsubst %.vtcc, %.cc,   $$($(1)_vtcxx_srcs))
+$(1)_vtcxx_deps    := $$(patsubst %.vtcc, %.cc.d, $$($(1)_vtcxx_srcs))
+
+$$($(1)_vtcxx_gensrcs) : %.cc : %.vtcc
+ifneq ($(KMEANS_VTCPP),no)
+	$(KMEANS_VTCPP) $(KMEANS_VTCPP_FLAGS) $(kmeans_cppflags) $(2) -c $$<
+else
+	cp $$< $$@
+endif
+
+$(1)_srcs   := $$(filter-out %.vtcc, $$($(1)_srcs))
+$(1)_srcs   += $$($(1)_vtcxx_gensrcs)
+kmeans_deps += $$($(1)_vtcxx_deps)
+kmeans_junk += $$($(1)_vtcxx_gensrcs) $$($(1)_vtcxx_deps)
+
+endef
+
+# Instantiate preprocessing template for the various types of sources
+# including unit tests, C++ programs, and installed C++ programs
+
+$(eval $(call kmeans_vtcpp_template,kmeans_test,$(utst_cppflags)))
+$(eval $(call kmeans_vtcpp_template,kmeans))
+$(eval $(call kmeans_vtcpp_template,kmeans_prog))
+$(eval $(call kmeans_vtcpp_template,kmeans_install_prog))
+

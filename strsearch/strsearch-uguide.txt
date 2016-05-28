@@ -1,0 +1,90 @@
+==========================================================================
+strsearch Application Kernel User Guide
+==========================================================================
+# Author : Derek Lockhart 
+# Date   : May 2010
+
+The strsearch application kernel searches for the presence of substrings
+in a collection of larger documents.  It is inspired by the stringsearch
+benchmark found within the MiBench embedded benchmark suite.  The 
+implemention uses the Knuth-Morris-Pratt (KMP) algorithm to perform the
+search, and includes two primary steps: 1) building a DFA for each 
+search string and 2) iterating through a document using the substring
+DFA (state machine) to determine if a match is found.
+
+Below is a python implementation of the strsearch algorithm:
+
+ def KMP():
+   # EXAMPLE
+   doc = "bananaoanabanao"  # document
+   re = "ana"               # substring
+   # BUILD THE DFA
+   DFA = (len(re)) * [0]
+   DFA[0] = -1
+   DFA[1] = 0
+   i = 2
+   j = 0
+   while i < len(re):
+     if re[i-1] == re[j]: 
+       DFA[i] = j+ 1
+       i = i + 1
+       j = j + 1
+     elif j > 0:
+       j = DFA[j]
+     else:
+       DFA[i] = 0
+       i = i + 1
+   print DFA 
+   # SEARCH FOR THE SUBSTRING
+   j = 0      # start of current match in doc
+   index = 0  # current char in re
+   while (j + index) < len(doc):
+     if re[index] == doc[j+index]:
+       index += 1
+       if index == len(re):
+         print ("FOUND: "+doc[:j]+"|"+doc[j:j+index]+"|"+doc[j+index:])
+         return 1
+     else:
+       j = j + index - DFA[index]
+       if index > 0:
+         index = DFA[index]
+   return 0
+ KMP()
+
+Currently the benchmark only returns a boolean indicating the presence
+or absence of a particular substring in a given document, and terminates
+as soon as the first occurance is found.  However, it could easily be 
+modified to search for multiple occurances and return the location of 
+all occurances found (if grep-like behavior is desired).  Note that when
+searching for multiple occurances of a substring in a single document, 
+the DFA built in the python code above will NOT register overlapping 
+strings. For example, the substring 'ana' will only be found twice in
+the document 'bananana', even though it actually appears three times.
+This behavior can also be easily fixed.
+
+The strsearch benchmark provides for two alternative data-parallel 
+implementations:
+
+* Each ut searches for for all substrings in a single document.
+  --alg doc
+
+* Each ut searches for for one substring in all documents.
+  --alg doc
+
+The default dataset found in strsearch-small.dat is borrowed from the
+dataset provided by pbmsearch_small.c in MiBench. There is also a larger
+dataset available in MiBench (in pbmsearch_large.c) that may be useful
+when running strsearch on multicore implementations.
+
+
+References:
+
+ MiBench: A free, commercially representative embedded benchmark suite by
+ Matthew R. Guthaus, Jeffrey S. Ringenberg, Dan Ernst, Todd M. Austin, 
+ Trevor Mudge, Richard B. Brown, IEEE 4th Annual Workshop on Workload
+ Characterization, Austin, TX, December 2001.
+
+ http://www.eecs.umich.edu/mibench/
+
+ http://oak.cs.ucla.edu/cs144/notes/ir.txt
+

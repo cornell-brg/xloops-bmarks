@@ -1,0 +1,67 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+stencil_intdeps  = @stencil_intdeps@
+stencil_cppflags = @stencil_cppflags@
+stencil_ldflags  = @stencil_ldflags@
+stencil_libs     = @stencil_libs@
+
+stencil_hdrs = \
+  stencil-scalar.h \
+	stencil-xloops.h \
+
+stencil_srcs = \
+
+stencil_clang_srcs = \
+	stencil-scalar.cc \
+	stencil-xloops.cc \
+
+stencil_install_prog_srcs = \
+  stencil.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+stencil_verify_outs := $(patsubst %.cc, %.out, $(stencil_install_prog_srcs))
+$(stencil_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(stencil_verify_outs)
+junk += $(stencil_verify_outs)
+check-stencil : $(stencil_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+STENCIL_CLANG       = @stencil_clang@
+STENCIL_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+STENCIL_CLANG_FLAGS = $(STENCIL_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+stencil_clang_objs := $(patsubst %.cc, %.o, $(stencil_clang_srcs))
+stencil_clang_deps := $(patsubst %.cc, %.d, $(stencil_clang_srcs))
+
+ifneq ($(STENCIL_CLANG),no)
+
+$(stencil_clang_objs) : %.o : %.cc
+	$(STENCIL_CLANG) $(STENCIL_CLANG_FLAGS) -c $<
+
+stencil_objs += $(stencil_clang_objs)
+stencil_deps += $(stencil_clang_deps)
+stencil_junk += $(stencil_clang_objs) $(stencil_clang_deps)
+
+else
+stencil_srcs += $(stencil_clang_srcs)
+endif
+
+

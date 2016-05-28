@@ -1,0 +1,80 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+sha_intdeps  = @sha_intdeps@
+sha_cppflags = @sha_cppflags@
+sha_ldflags  = @sha_ldflags@
+sha_libs     = @sha_libs@
+
+sha_hdrs = \
+  sha-scalar.h \
+	sha-xloops.h \
+	sha-xloops-opt.h \
+
+sha_srcs = \
+
+sha_clang_srcs = \
+	sha-scalar.cc \
+
+sha_clang_asm_srcs = \
+	sha-xloops.cc \
+	sha-xloops-opt.cc \
+
+sha_install_prog_srcs = \
+  sha.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+sha_verify_outs := $(patsubst %.cc, %.out, $(sha_install_prog_srcs))
+$(sha_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(sha_verify_outs)
+junk += $(sha_verify_outs)
+check-sha : $(sha_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+SHA_CLANG       = @sha_clang@
+SHA_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+SHA_CLANG_FLAGS = $(SHA_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+SHA_CLANG_OPT_FLAGS = $(SHA_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN -mllvm -disable-loop-check
+
+sha_clang_objs := $(patsubst %.cc, %.o, $(sha_clang_srcs))
+sha_clang_deps := $(patsubst %.cc, %.d, $(sha_clang_srcs))
+
+sha_clang_asm_objs := $(patsubst %.cc, %.o, $(sha_clang_asm_srcs))
+sha_clang_asm_deps := $(patsubst %.cc, %.d, $(sha_clang_asm_srcs))
+
+ifneq ($(SHA_CLANG),no)
+
+$(sha_clang_objs) : %.o : %.cc
+	$(SHA_CLANG) $(SHA_CLANG_FLAGS) -c $<
+
+$(sha_clang_asm_objs) : %.o : %.cc
+	$(SHA_CLANG) $(SHA_CLANG_OPT_FLAGS) -c $<
+
+sha_objs += $(sha_clang_objs)
+sha_objs += $(sha_clang_asm_objs)
+sha_deps += $(sha_clang_deps)
+sha_junk += $(sha_clang_objs) $(sha_clang_asm_objs) $(sha_clang_deps)
+
+else
+sha_srcs += $(sha_clang_srcs)
+sha_srcs += $(sha_clang_asm_srcs)
+endif
+
+

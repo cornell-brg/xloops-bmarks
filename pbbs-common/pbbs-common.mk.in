@@ -1,0 +1,86 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+pbbs_common_intdeps  = @pbbs_common_intdeps@
+pbbs_common_cppflags = @pbbs_common_cppflags@
+pbbs_common_ldflags  = @pbbs_common_ldflags@
+pbbs_common_libs     = @pbbs_common_libs@
+
+pbbs_common_srcs = \
+	pbbs-common-topologyFromTri.cc \
+
+pbbs_common_clang_srcs = \
+
+pbbs_common_install_prog_srcs = \
+
+# Explicit LLVM bitcode files
+
+pbbs_common_llc_srcs = \
+
+pbbs_common_llc_lls = \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+pbbs_common_verify_outs := $(patsubst %.cc, %.out, $(pbbs_common_install_prog_srcs))
+$(pbbs_common_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(pbbs_common_verify_outs)
+junk += $(pbbs_common_verify_outs)
+check-pbbs-common : $(pbbs_common_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+#
+# Note: ADDITIONAL_FLAGS captures the include paths to other external
+# project dependencies
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+PBBS_COMMON_CLANG            = @pbbs_common_clang@
+PBBS_COMMON_CXXFLAGS         = $(filter-out -g, $(CXXFLAGS))
+PBBS_COMMON_ADDITIONAL_FLAGS = $(filter %/stdx, $(pbbs_common_cppflags))
+PBBS_COMMON_CLANG_FLAGS      = $(PBBS_COMMON_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) \
+                          $(PBBS_COMMON_ADDITIONAL_FLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+PBBS_COMMON_LLC_FLAGS        = -O3 -march=pisael -relocation-model=static
+
+pbbs_common_clang_objs   := $(patsubst %.cc, %.o, $(pbbs_common_clang_srcs))
+pbbs_common_clang_deps   := $(patsubst %.cc, %.d, $(pbbs_common_clang_srcs))
+pbbs_common_llc_asms     := $(patsubst %.ll, %.s, $(pbbs_common_llc_lls))
+pbbs_common_llc_objs     := $(patsubst %.s,  %.o, $(pbbs_common_llc_asms))
+
+ifneq ($(PBBS_COMMON_CLANG),no)
+
+$(pbbs_common_clang_objs) : %.o : %.cc
+	$(PBBS_COMMON_CLANG) $(PBBS_COMMON_CLANG_FLAGS) -c $<
+
+$(pbbs_common_llc_asms) : %.s : %.ll
+	llc $(PBBS_COMMON_LLC_FLAGS) $< -o $@
+
+$(pbbs_common_llc_objs) : %.o : %.s
+	$(CC) -O3 -c $<
+
+pbbs_common_objs += $(pbbs_common_clang_objs)
+pbbs_common_objs += $(pbbs_common_llc_objs)
+pbbs_common_deps += $(pbbs_common_clang_deps)
+pbbs_common_junk += \
+  $(pbbs_common_clang_objs) \
+  $(pbbs_common_clang_deps) \
+  $(pbbs_common_llc_asms) \
+  $(pbbs_common_llc_objs) \
+
+else
+pbbs_common_srcs += $(pbbs_common_clang_srcs) $(pbbs_common_llc_srcs)
+endif
+
+

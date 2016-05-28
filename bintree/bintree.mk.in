@@ -1,0 +1,67 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+bintree_intdeps  = @bintree_intdeps@
+bintree_cppflags = @bintree_cppflags@
+bintree_ldflags  = @bintree_ldflags@
+bintree_libs     = @bintree_libs@
+
+bintree_hdrs = \
+  bintree-scalar.h \
+  bintree-xloops.h \
+
+bintree_srcs = \
+
+bintree_clang_srcs = \
+	bintree-scalar.cc \
+	bintree-xloops.cc \
+
+bintree_install_prog_srcs = \
+  bintree.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+bintree_verify_outs := $(patsubst %.cc, %.out, $(bintree_install_prog_srcs))
+$(bintree_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(bintree_verify_outs)
+junk += $(bintree_verify_outs)
+check-bintree : $(bintree_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+BINTREE_CLANG       = @bintree_clang@
+BINTREE_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+BINTREE_CLANG_FLAGS = $(BINTREE_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+bintree_clang_objs := $(patsubst %.cc, %.o, $(bintree_clang_srcs))
+bintree_clang_deps := $(patsubst %.cc, %.d, $(bintree_clang_srcs))
+
+ifneq ($(BINTREE_CLANG),no)
+
+$(bintree_clang_objs) : %.o : %.cc
+	$(BINTREE_CLANG) $(BINTREE_CLANG_FLAGS) -c $<
+
+bintree_objs += $(bintree_clang_objs)
+bintree_deps += $(bintree_clang_deps)
+bintree_junk += $(bintree_clang_objs) $(bintree_clang_deps)
+
+else
+bintree_srcs += $(bintree_clang_srcs)
+endif
+
+

@@ -1,0 +1,114 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+rsort_intdeps  = @rsort_intdeps@
+rsort_cppflags = @rsort_cppflags@
+rsort_ldflags  = @rsort_ldflags@
+rsort_libs     = @rsort_libs@
+
+rsort_hdrs = \
+  rsort-scalar.h \
+  rsort-xloops.h \
+  rsort-xloops-opt.h \
+
+rsort_srcs = \
+
+rsort_clang_srcs = \
+  rsort-scalar.cc \
+  rsort-xloops.cc \
+  rsort-xloops-opt.cc \
+
+rsort_install_prog_srcs = \
+  rsort.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+rsort_verify_outs := $(patsubst %.cc, %.out, $(rsort_install_prog_srcs))
+$(rsort_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(rsort_verify_outs)
+junk += $(rsort_verify_outs)
+check-rsort : $(rsort_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+RSORT_CLANG       = @rsort_clang@
+RSORT_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+RSORT_CLANG_FLAGS = $(RSORT_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+rsort_clang_objs := $(patsubst %.cc, %.o, $(rsort_clang_srcs))
+rsort_clang_deps := $(patsubst %.cc, %.d, $(rsort_clang_srcs))
+
+ifneq ($(RSORT_CLANG),no)
+
+$(rsort_clang_objs) : %.o : %.cc
+	$(RSORT_CLANG) $(RSORT_CLANG_FLAGS) -c $<
+
+rsort_objs += $(rsort_clang_objs)
+rsort_deps += $(rsort_clang_deps)
+rsort_junk += $(rsort_clang_objs) $(rsort_clang_deps)
+
+else
+rsort_srcs += $(rsort_clang_srcs)
+endif
+
+#-------------------------------------------------------------------------
+# Rules for preprocessing C++ sources with maven-vtcpp
+#-------------------------------------------------------------------------
+# If we are compiling for maven then we actually run the preprocessor,
+# otherwise we just copy the .vtcc file to a .cc file in the build
+# directory since no preprocessing is necessary.
+
+# Preprocessor is set from configure, we need to run the preprocessor
+# with the exact same flags we will be using to actually compile the
+# generated source.
+
+RSORT_VTCPP       = @rsort_vtcpp@
+RSORT_VTCPP_FLAGS = $(CXXFLAGS) -MMD -MP -I. $(CPPFLAGS)
+
+# Preprocessing template
+#  $(1) : source type (test,prog,install_prog)
+#  $(2) : extra cppflags
+
+define rsort_vtcpp_template
+
+$(1)_vtcxx_srcs    := $$(filter %.vtcc, $$($(1)_srcs))
+$(1)_vtcxx_gensrcs := $$(patsubst %.vtcc, %.cc,   $$($(1)_vtcxx_srcs))
+$(1)_vtcxx_deps    := $$(patsubst %.vtcc, %.cc.d, $$($(1)_vtcxx_srcs))
+
+$$($(1)_vtcxx_gensrcs) : %.cc : %.vtcc
+ifneq ($(RSORT_VTCPP),no)
+	$(RSORT_VTCPP) $(RSORT_VTCPP_FLAGS) $(rsort_cppflags) $(2) -c $$<
+else
+	cp $$< $$@
+endif
+
+$(1)_srcs  := $$(filter-out %.vtcc, $$($(1)_srcs))
+$(1)_srcs  += $$($(1)_vtcxx_gensrcs)
+rsort_deps += $$($(1)_vtcxx_deps)
+rsort_junk += $$($(1)_vtcxx_gensrcs) $$($(1)_vtcxx_deps)
+
+endef
+
+# Instantiate preprocessing template for the various types of sources
+# including unit tests, C++ programs, and installed C++ programs
+
+$(eval $(call rsort_vtcpp_template,rsort_test,$(utst_cppflags)))
+$(eval $(call rsort_vtcpp_template,rsort))
+$(eval $(call rsort_vtcpp_template,rsort_prog))
+$(eval $(call rsort_vtcpp_template,rsort_install_prog))
+

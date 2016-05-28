@@ -1,0 +1,69 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+warshall_intdeps  = @warshall_intdeps@
+warshall_cppflags = @warshall_cppflags@
+warshall_ldflags  = @warshall_ldflags@
+warshall_libs     = @warshall_libs@
+
+warshall_hdrs = \
+  warshall-scalar.h \
+	warshall-xloops.h \
+	warshall-xloops-mem.h \
+
+warshall_srcs = \
+
+warshall_clang_srcs = \
+	warshall-scalar.cc \
+	warshall-xloops.cc \
+	warshall-xloops-mem.cc \
+
+warshall_install_prog_srcs = \
+  warshall.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+warshall_verify_outs := $(patsubst %.cc, %.out, $(warshall_install_prog_srcs))
+$(warshall_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(warshall_verify_outs)
+junk += $(warshall_verify_outs)
+check-warshall : $(warshall_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+WARSHALL_CLANG       = @warshall_clang@
+WARSHALL_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+WARSHALL_CLANG_FLAGS = $(WARSHALL_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+warshall_clang_objs := $(patsubst %.cc, %.o, $(warshall_clang_srcs))
+warshall_clang_deps := $(patsubst %.cc, %.d, $(warshall_clang_srcs))
+
+ifneq ($(WARSHALL_CLANG),no)
+
+$(warshall_clang_objs) : %.o : %.cc
+	$(WARSHALL_CLANG) $(WARSHALL_CLANG_FLAGS) -c $<
+
+warshall_objs += $(warshall_clang_objs)
+warshall_deps += $(warshall_clang_deps)
+warshall_junk += $(warshall_clang_objs) $(warshall_clang_deps)
+
+else
+warshall_srcs += $(warshall_clang_srcs)
+endif
+
+

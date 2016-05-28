@@ -1,0 +1,64 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+bfs_intdeps  = @bfs_intdeps@
+bfs_cppflags = @bfs_cppflags@
+bfs_ldflags  = @bfs_ldflags@
+bfs_libs     = @bfs_libs@
+
+bfs_hdrs = \
+  bfs-scalar.h \
+  bfs-xloops.h \
+
+bfs_clang_srcs = \
+  bfs-scalar.cc \
+  bfs-xloops.cc \
+  bfs-xloops-unified.cc \
+
+bfs_install_prog_srcs = \
+  bfs.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+bfs_verify_outs := $(patsubst %.cc, %.out, $(bfs_install_prog_srcs))
+$(bfs_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(bfs_verify_outs)
+junk += $(bfs_verify_outs)
+check-bfs : $(bfs_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+BFS_CLANG       = @bfs_clang@
+BFS_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+BFS_CLANG_FLAGS = $(BFS_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+bfs_clang_objs := $(patsubst %.cc, %.o, $(bfs_clang_srcs))
+bfs_clang_deps := $(patsubst %.cc, %.d, $(bfs_clang_srcs))
+
+ifneq ($(BFS_CLANG),no)
+
+$(bfs_clang_objs) : %.o : %.cc
+	$(BFS_CLANG) $(BFS_CLANG_FLAGS) -c $<
+
+bfs_objs += $(bfs_clang_objs)
+bfs_deps += $(bfs_clang_deps)
+bfs_junk += $(bfs_clang_objs) $(bfs_clang_deps)
+
+else
+bfs_srcs += $(bfs_clang_srcs)
+endif

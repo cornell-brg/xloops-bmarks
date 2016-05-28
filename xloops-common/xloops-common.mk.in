@@ -1,0 +1,90 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Author: Shreesha Srinath
+#
+# xloops-common project hosts library calls which are implemented using
+# xloops instructions
+
+xloops_common_intdeps  = @xloops_common_intdeps@
+xloops_common_cppflags = @xloops_common_cppflags@
+xloops_common_ldflags  = @xloops_common_ldflags@
+xloops_common_libs     = @xloops_common_libs@
+
+xloops_common_hdrs = \
+	xloops-common-memset.h \
+
+xloops_common_srcs = \
+
+xloops_common_clang_srcs = \
+
+xloops_common_install_prog_srcs = \
+
+# Explicit LLVM bitcode files
+
+xloops_common_llc_srcs = \
+
+xloops_common_llc_lls = \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+xloops_common_verify_outs := $(patsubst %.cc, %.out, $(xloops_common_install_prog_srcs))
+$(xloops_common_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(xloops_common_verify_outs)
+junk += $(xloops_common_verify_outs)
+check-xloops-common : $(xloops_common_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+#
+# Note: ADDITIONAL_FLAGS captures the include paths to other external
+# project dependencies
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+PBBS_COMMON_CLANG            = @xloops_common_clang@
+PBBS_COMMON_CXXFLAGS         = $(filter-out -g, $(CXXFLAGS))
+PBBS_COMMON_ADDITIONAL_FLAGS = $(filter %/stdx, $(xloops_common_cppflags))
+PBBS_COMMON_CLANG_FLAGS      = $(PBBS_COMMON_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) \
+                          $(PBBS_COMMON_ADDITIONAL_FLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+PBBS_COMMON_LLC_FLAGS        = -O3 -march=pisael -relocation-model=static
+
+xloops_common_clang_objs   := $(patsubst %.cc, %.o, $(xloops_common_clang_srcs))
+xloops_common_clang_deps   := $(patsubst %.cc, %.d, $(xloops_common_clang_srcs))
+xloops_common_llc_asms     := $(patsubst %.ll, %.s, $(xloops_common_llc_lls))
+xloops_common_llc_objs     := $(patsubst %.s,  %.o, $(xloops_common_llc_asms))
+
+ifneq ($(PBBS_COMMON_CLANG),no)
+
+$(xloops_common_clang_objs) : %.o : %.cc
+	$(PBBS_COMMON_CLANG) $(PBBS_COMMON_CLANG_FLAGS) -c $<
+
+$(xloops_common_llc_asms) : %.s : %.ll
+	llc $(PBBS_COMMON_LLC_FLAGS) $< -o $@
+
+$(xloops_common_llc_objs) : %.o : %.s
+	$(CC) -O3 -c $<
+
+xloops_common_objs += $(xloops_common_clang_objs)
+xloops_common_objs += $(xloops_common_llc_objs)
+xloops_common_deps += $(xloops_common_clang_deps)
+xloops_common_junk += \
+  $(xloops_common_clang_objs) \
+  $(xloops_common_clang_deps) \
+  $(xloops_common_llc_asms) \
+  $(xloops_common_llc_objs) \
+
+else
+xloops_common_srcs += $(xloops_common_clang_srcs) $(xloops_common_llc_srcs)
+endif
+
+

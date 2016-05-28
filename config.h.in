@@ -1,0 +1,112 @@
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Define if we should include subproject bfs */
+#undef HAVE_BFS
+
+/* Define if we should include subproject bintree */
+#undef HAVE_BINTREE
+
+/* Define if we should include subproject covariance */
+#undef HAVE_COVARIANCE
+
+/* Define if we should include subproject dither */
+#undef HAVE_DITHER
+
+/* Define if we should include subproject dynprog */
+#undef HAVE_DYNPROG
+
+/* Define if we should include subproject heapsort */
+#undef HAVE_HEAPSORT
+
+/* Define if we should include subproject huffman */
+#undef HAVE_HUFFMAN
+
+/* Define if we should include subproject kmeans */
+#undef HAVE_KMEANS
+
+/* Define if we should include subproject knapsack */
+#undef HAVE_KNAPSACK
+
+/* Define if we should include subproject mibench-adpcmdec */
+#undef HAVE_MIBENCH_ADPCMDEC
+
+/* Define if we should include subproject pbbs-common */
+#undef HAVE_PBBS_COMMON
+
+/* Define if we should include subproject pbbs-knn */
+#undef HAVE_PBBS_KNN
+
+/* Define if we should include subproject pbbs-mm */
+#undef HAVE_PBBS_MM
+
+/* Define if we should include subproject pinfo */
+#undef HAVE_PINFO
+
+/* Define if we should include subproject quicksort */
+#undef HAVE_QUICKSORT
+
+/* Define if we should include subproject rgb2cmyk */
+#undef HAVE_RGB2CMYK
+
+/* Define if we should include subproject rsort */
+#undef HAVE_RSORT
+
+/* Define if we should include subproject sgemm */
+#undef HAVE_SGEMM
+
+/* Define if we should include subproject sha */
+#undef HAVE_SHA
+
+/* Define if we should include subproject stdx */
+#undef HAVE_STDX
+
+/* Define if we should include subproject stencil */
+#undef HAVE_STENCIL
+
+/* Define if we should include subproject strsearch */
+#undef HAVE_STRSEARCH
+
+/* Define if we should include subproject symm */
+#undef HAVE_SYMM
+
+/* Define if we should include subproject utst */
+#undef HAVE_UTST
+
+/* Define if we should include subproject viterbi */
+#undef HAVE_VITERBI
+
+/* Define if we should include subproject warshall */
+#undef HAVE_WARSHALL
+
+/* Define if we should include subproject xloops-common */
+#undef HAVE_XLOOPS_COMMON
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Define if abi::__cxa_demangle is available */
+#undef STDX_HAVE_ABI_CXA_DEMANGLE
+
+/* Define if getrusage is available */
+#undef STDX_HAVE_GETRUSAGE
+
+/* Define if GNU __PRETTY_FUNCTION__ is available */
+#undef STDX_HAVE_GNU_PRETTY_FUNCTION
+
+/* Define if tr1::unordered_map is available */
+#undef STDX_HAVE_TR1_UNORDERED_MAP

@@ -1,0 +1,112 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+viterbi_intdeps  = @viterbi_intdeps@
+viterbi_cppflags = @viterbi_cppflags@
+viterbi_ldflags  = @viterbi_ldflags@
+viterbi_libs     = @viterbi_libs@
+
+viterbi_hdrs = \
+  viterbi-scalar.h \
+  viterbi-xloops.h \
+
+viterbi_srcs = \
+
+viterbi_clang_srcs = \
+  viterbi-scalar.cc \
+  viterbi-xloops.cc \
+
+viterbi_install_prog_srcs = \
+  viterbi.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+viterbi_verify_outs := $(patsubst %.cc, %.out, $(viterbi_install_prog_srcs))
+$(viterbi_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(viterbi_verify_outs)
+junk += $(viterbi_verify_outs)
+check-viterbi : $(viterbi_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+VITERBI_CLANG       = @viterbi_clang@
+VITERBI_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+VITERBI_CLANG_FLAGS = $(VITERBI_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+viterbi_clang_objs := $(patsubst %.cc, %.o, $(viterbi_clang_srcs))
+viterbi_clang_deps := $(patsubst %.cc, %.d, $(viterbi_clang_srcs))
+
+ifneq ($(VITERBI_CLANG),no)
+
+$(viterbi_clang_objs) : %.o : %.cc
+	$(VITERBI_CLANG) $(VITERBI_CLANG_FLAGS) -c $<
+
+viterbi_objs += $(viterbi_clang_objs)
+viterbi_deps += $(viterbi_clang_deps)
+viterbi_junk += $(viterbi_clang_objs) $(viterbi_clang_deps)
+
+else
+viterbi_srcs += $(viterbi_clang_srcs)
+endif
+
+#-------------------------------------------------------------------------
+# Rules for preprocessing C++ sources with maven-vtcpp
+#-------------------------------------------------------------------------
+# If we are compiling for maven then we actually run the preprocessor,
+# otherwise we just copy the .vtcc file to a .cc file in the build
+# directory since no preprocessing is necessary.
+
+# Preprocessor is set from configure, we need to run the preprocessor
+# with the exact same flags we will be using to actually compile the
+# generated source.
+
+VITERBI_VTCPP       = @viterbi_vtcpp@
+VITERBI_VTCPP_FLAGS = $(CXXFLAGS) -MMD -MP -I. $(CPPFLAGS)
+
+# Preprocessing template
+#  $(1) : source type (test,prog,install_prog)
+#  $(2) : extra cppflags
+
+define viterbi_vtcpp_template
+
+$(1)_vtcxx_srcs    := $$(filter %.vtcc, $$($(1)_srcs))
+$(1)_vtcxx_gensrcs := $$(patsubst %.vtcc, %.cc,   $$($(1)_vtcxx_srcs))
+$(1)_vtcxx_deps    := $$(patsubst %.vtcc, %.cc.d, $$($(1)_vtcxx_srcs))
+
+$$($(1)_vtcxx_gensrcs) : %.cc : %.vtcc
+ifneq ($(VITERBI_VTCPP),no)
+	$(VITERBI_VTCPP) $(VITERBI_VTCPP_FLAGS) $(viterbi_cppflags) $(2) -c $$<
+else
+	cp $$< $$@
+endif
+
+$(1)_srcs   := $$(filter-out %.vtcc, $$($(1)_srcs))
+$(1)_srcs   += $$($(1)_vtcxx_gensrcs)
+viterbi_deps += $$($(1)_vtcxx_deps)
+viterbi_junk += $$($(1)_vtcxx_gensrcs) $$($(1)_vtcxx_deps)
+
+endef
+
+# Instantiate preprocessing template for the various types of sources
+# including unit tests, C++ programs, and installed C++ programs
+
+$(eval $(call viterbi_vtcpp_template,viterbi_test,$(utst_cppflags)))
+$(eval $(call viterbi_vtcpp_template,viterbi))
+$(eval $(call viterbi_vtcpp_template,viterbi_prog))
+$(eval $(call viterbi_vtcpp_template,viterbi_install_prog))
+

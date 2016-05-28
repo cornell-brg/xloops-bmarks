@@ -1,0 +1,67 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+dynprog_intdeps  = @dynprog_intdeps@
+dynprog_cppflags = @dynprog_cppflags@
+dynprog_ldflags  = @dynprog_ldflags@
+dynprog_libs     = @dynprog_libs@
+
+dynprog_hdrs = \
+  dynprog-scalar.h \
+	dynprog-xloops.h \
+
+dynprog_srcs = \
+
+dynprog_clang_srcs = \
+	dynprog-scalar.cc \
+	dynprog-xloops.cc \
+
+dynprog_install_prog_srcs = \
+  dynprog.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+dynprog_verify_outs := $(patsubst %.cc, %.out, $(dynprog_install_prog_srcs))
+$(dynprog_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(dynprog_verify_outs)
+junk += $(dynprog_verify_outs)
+check-dynprog : $(dynprog_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+dynprog_CLANG       = @dynprog_clang@
+dynprog_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+dynprog_CLANG_FLAGS = $(dynprog_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+dynprog_clang_objs := $(patsubst %.cc, %.o, $(dynprog_clang_srcs))
+dynprog_clang_deps := $(patsubst %.cc, %.d, $(dynprog_clang_srcs))
+
+ifneq ($(dynprog_CLANG),no)
+
+$(dynprog_clang_objs) : %.o : %.cc
+	$(dynprog_CLANG) $(dynprog_CLANG_FLAGS) -c $<
+
+dynprog_objs += $(dynprog_clang_objs)
+dynprog_deps += $(dynprog_clang_deps)
+dynprog_junk += $(dynprog_clang_objs) $(dynprog_clang_deps)
+
+else
+dynprog_srcs += $(dynprog_clang_srcs)
+endif
+
+

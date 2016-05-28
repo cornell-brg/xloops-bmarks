@@ -1,0 +1,53 @@
+==========================================================================
+viterbi Application Kernel User Guide
+==========================================================================
+# Author : Derek Lockhart 
+# Date   : June 2010
+
+The viterbi application kernel uses the viterbi algorithm to decode an
+error-laden convolution code. The current implementation consists of 
+three stages:
+
+* branch table generation
+* forward path calculation
+* path traceback
+
+The branch table enumerates all possible current state/next state
+transitions, which are used when determining the error for each path.
+Typically this table needs to be large enough to store two entries
+for each state (for a Rate=1/2 code, there are two legal paths entering
+and exiting every state). However the butterfly computation exploits
+symmetry in the state space so that only half the entries are needed.
+(This means only 32*2 branch table entries are required instead of the
+usual 64*2 in a K=7 convolutional code). Generation of the branch table
+is performed in parallel.
+
+The forward path calculation is parallelized across states as well.
+Thanks to the symmetric butterfly computation, each uT can efficiently
+compute the error and select the most likely paths for two independent
+states simultaneously. This reduces the number of uTs necessary by half
+(32 instead of 64 for a K=7 convolutional code).
+
+Once the forward path calculation is complete, all that is left is
+reconstruction of the survivor path. This requires iterating through each
+state of the minimum error path in reverse order to generate the decoded
+message. Traceback is currently performed sequentially. Unfortunately,
+there are no obvious approaches to parallelizing this portion of the
+algorithm.
+     
+The data stored in viterbi.dat is a K=7, Rate=1/2 convolutional code
+(same as the WiMax standard) with a framelength of 2048 bits. This data
+was generated using the Spiral software from CMU, however, in the future
+we plan to generate new datasets with a newly implemented convolutional
+encoder application kernel.
+
+A python implementation of the viterbi decoder can be found in the
+file viterbi.py.
+
+References:
+
+  http://home.netcom.com/~chip.f/viterbi/algrthms.html
+
+  http://www.spiral.net/software/viterbi.html
+
+

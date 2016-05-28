@@ -1,0 +1,70 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+quicksort_intdeps  = @quicksort_intdeps@
+quicksort_cppflags = @quicksort_cppflags@
+quicksort_ldflags  = @quicksort_ldflags@
+quicksort_libs     = @quicksort_libs@
+
+quicksort_hdrs = \
+  quicksort-scalar.h \
+  quicksort-common.h \
+  quicksort-xloops-split.h \
+  quicksort-xloops-unified.h \
+
+quicksort_srcs = \
+
+quicksort_clang_srcs = \
+	quicksort-scalar.cc \
+	quicksort-xloops-split.cc \
+	quicksort-xloops-unified.cc \
+
+quicksort_install_prog_srcs = \
+  quicksort.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+quicksort_verify_outs := $(patsubst %.cc, %.out, $(quicksort_install_prog_srcs))
+$(quicksort_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(quicksort_verify_outs)
+junk += $(quicksort_verify_outs)
+check-quicksort : $(quicksort_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+QUICKSORT_CLANG       = @quicksort_clang@
+QUICKSORT_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+QUICKSORT_CLANG_FLAGS = $(QUICKSORT_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+quicksort_clang_objs := $(patsubst %.cc, %.o, $(quicksort_clang_srcs))
+quicksort_clang_deps := $(patsubst %.cc, %.d, $(quicksort_clang_srcs))
+
+ifneq ($(QUICKSORT_CLANG),no)
+
+$(quicksort_clang_objs) : %.o : %.cc
+	$(QUICKSORT_CLANG) $(QUICKSORT_CLANG_FLAGS) -c $<
+
+quicksort_objs += $(quicksort_clang_objs)
+quicksort_deps += $(quicksort_clang_deps)
+quicksort_junk += $(quicksort_clang_objs) $(quicksort_clang_deps)
+
+else
+quicksort_srcs += $(quicksort_clang_srcs)
+endif
+
+

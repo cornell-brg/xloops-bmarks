@@ -1,0 +1,68 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+symm_intdeps  = @symm_intdeps@
+symm_cppflags = @symm_cppflags@
+symm_ldflags  = @symm_ldflags@
+symm_libs     = @symm_libs@
+
+symm_hdrs = \
+  symm-scalar.h \
+	symm-xloops.h \
+
+symm_srcs = \
+
+symm_clang_srcs = \
+	symm-scalar.cc \
+	symm-xloops.cc \
+	symm-xloops-reg.cc \
+
+symm_install_prog_srcs = \
+  symm.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+symm_verify_outs := $(patsubst %.cc, %.out, $(symm_install_prog_srcs))
+$(symm_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(symm_verify_outs)
+junk += $(symm_verify_outs)
+check-symm : $(symm_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+SYMM_CLANG       = @symm_clang@
+SYMM_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+SYMM_CLANG_FLAGS = $(SYMM_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+symm_clang_objs := $(patsubst %.cc, %.o, $(symm_clang_srcs))
+symm_clang_deps := $(patsubst %.cc, %.d, $(symm_clang_srcs))
+
+ifneq ($(SYMM_CLANG),no)
+
+$(symm_clang_objs) : %.o : %.cc
+	$(SYMM_CLANG) $(SYMM_CLANG_FLAGS) -c $<
+
+symm_objs += $(symm_clang_objs)
+symm_deps += $(symm_clang_deps)
+symm_junk += $(symm_clang_objs) $(symm_clang_deps)
+
+else
+symm_srcs += $(symm_clang_srcs)
+endif
+
+

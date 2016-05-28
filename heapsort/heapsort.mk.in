@@ -1,0 +1,67 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+heapsort_intdeps  = @heapsort_intdeps@
+heapsort_cppflags = @heapsort_cppflags@
+heapsort_ldflags  = @heapsort_ldflags@
+heapsort_libs     = @heapsort_libs@
+
+heapsort_hdrs = \
+  heapsort-scalar.h \
+	heapsort-xloops.h \
+
+heapsort_srcs = \
+
+heapsort_clang_srcs = \
+	heapsort-scalar.cc \
+	heapsort-xloops.cc \
+
+heapsort_install_prog_srcs = \
+  heapsort.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+heapsort_verify_outs := $(patsubst %.cc, %.out, $(heapsort_install_prog_srcs))
+$(heapsort_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(heapsort_verify_outs)
+junk += $(heapsort_verify_outs)
+check-heapsort : $(heapsort_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+HEAPSORT_CLANG       = @heapsort_clang@
+HEAPSORT_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+HEAPSORT_CLANG_FLAGS = $(HEAPSORT_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+heapsort_clang_objs := $(patsubst %.cc, %.o, $(heapsort_clang_srcs))
+heapsort_clang_deps := $(patsubst %.cc, %.d, $(heapsort_clang_srcs))
+
+ifneq ($(HEAPSORT_CLANG),no)
+
+$(heapsort_clang_objs) : %.o : %.cc
+	$(HEAPSORT_CLANG) $(HEAPSORT_CLANG_FLAGS) -c $<
+
+heapsort_objs += $(heapsort_clang_objs)
+heapsort_deps += $(heapsort_clang_deps)
+heapsort_junk += $(heapsort_clang_objs) $(heapsort_clang_deps)
+
+else
+heapsort_srcs += $(heapsort_clang_srcs)
+endif
+
+

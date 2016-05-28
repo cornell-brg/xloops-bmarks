@@ -1,0 +1,65 @@
+#=========================================================================
+# Modular C++ Build System Subproject Makefile Fragment
+#=========================================================================
+# Please read the documenation in 'mcppbs-uguide.txt' for more details
+# on how the Modular C++ Build System works.
+
+sgemm_intdeps  = @sgemm_intdeps@
+sgemm_cppflags = @sgemm_cppflags@
+sgemm_ldflags  = @sgemm_ldflags@
+sgemm_libs     = @sgemm_libs@
+
+# note: reverted compiling sgemm-scalar back at gcc because llvm produced
+# inferior code
+sgemm_srcs = \
+
+sgemm_clang_srcs = \
+	sgemm-scalar.cc \
+	sgemm-xloops.cc \
+	sgemm-xloops-opt.cc \
+
+sgemm_install_prog_srcs = \
+  sgemm.cc \
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks with --verify option
+#-------------------------------------------------------------------------
+
+sgemm_verify_outs := $(patsubst %.cc, %.out, $(sgemm_install_prog_srcs))
+$(sgemm_verify_outs) : %.out : %
+	$(RUN) $(RUNFLAGS) ./$< --impl all --verify 2>&1 | tee $@
+
+outs += $(sgemm_verify_outs)
+junk += $(sgemm_verify_outs)
+check-sgemm : $(sgemm_verify_outs)
+
+#-------------------------------------------------------------------------
+# Rules for running benchmarks using PISA LLVM toolchain
+#-------------------------------------------------------------------------
+
+# Note: Debug option (-g) is filtered out of the CXXFLAGS as custom LLVM
+# Passes set custom debug information in the toolchain to work correctly
+# and not disabling the debug option may cause them to fail.
+# Note: added _MIPS_ARCH_MAVEN define to the clang flags because some apps
+# do conditional compiling based on this
+
+SGEMM_CLANG       = @sgemm_clang@
+SGEMM_CXXFLAGS    = $(filter-out -g, $(CXXFLAGS))
+SGEMM_CLANG_FLAGS = $(SGEMM_CXXFLAGS) -MMD -MP -I. $(CPPFLAGS) -target pisael-brg -D_MIPS_ARCH_MAVEN
+
+sgemm_clang_objs := $(patsubst %.cc, %.o, $(sgemm_clang_srcs))
+sgemm_clang_deps := $(patsubst %.cc, %.d, $(sgemm_clang_srcs))
+
+ifneq ($(SGEMM_CLANG),no)
+
+$(sgemm_clang_objs) : %.o : %.cc
+	$(SGEMM_CLANG) $(SGEMM_CLANG_FLAGS) -c $<
+
+sgemm_objs += $(sgemm_clang_objs)
+sgemm_deps += $(sgemm_clang_deps)
+sgemm_junk += $(sgemm_clang_objs) $(sgemm_clang_deps)
+
+else
+sgemm_srcs += $(sgemm_clang_srcs)
+endif
+
