@@ -70,7 +70,7 @@ stdx_test_srcs = \
   stdx-InputRange.t.cc \
   stdx-HashMap.t.cc \
   stdx-BoundedQueue.t.cc \
-  stdx-Timer.t.cc \
+#  stdx-Timer.t.cc \
 
 # Currently the bit containers to not work on 64b machines
 #  stdx-BitContainer.h \

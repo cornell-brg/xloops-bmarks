@@ -30,15 +30,6 @@
 /* Define if we should include subproject mibench-adpcmdec */
 #undef HAVE_MIBENCH_ADPCMDEC
 
-/* Define if we should include subproject pbbs-common */
-#undef HAVE_PBBS_COMMON
-
-/* Define if we should include subproject pbbs-knn */
-#undef HAVE_PBBS_KNN
-
-/* Define if we should include subproject pbbs-mm */
-#undef HAVE_PBBS_MM
-
 /* Define if we should include subproject pinfo */
 #undef HAVE_PINFO
 

@@ -282,7 +282,7 @@ int main( int argc, char* argv[] )
       dither_xloops_reg( &dest[0], image, nrows, ncols );
       verify_results( "xloops-reg", &dest[0], ref, nrows, ncols );
     }
-
+/*
     if ( (impl == IMPL_ALL) || (impl == IMPL_XLOOPS_REG_OPT) ) {
       std::vector<byte> dest(nrows*ncols);
       dither_xloops_reg_opt( &dest[0], image, nrows, ncols );
@@ -294,7 +294,7 @@ int main( int argc, char* argv[] )
       dither_xloops_mem( &dest[0], image, nrows, ncols );
       verify_results( "xloops-mem", &dest[0], ref, nrows, ncols );
     }
-
+*/
     std::cout << std::endl;
     return 0;
   }
@@ -312,12 +312,13 @@ int main( int argc, char* argv[] )
 
     else if ( impl == IMPL_XLOOPS_REG )
       dither_xloops_reg( &dest[0], image, nrows, ncols );
-
+/*
     else if ( impl == IMPL_XLOOPS_REG_OPT )
       dither_xloops_reg_opt( &dest[0], image, nrows, ncols );
 
     else if ( impl == IMPL_XLOOPS_MEM )
       dither_xloops_mem( &dest[0], image, nrows, ncols );
+*/
   }
 
   stdx::Timer timer;
@@ -334,12 +335,13 @@ int main( int argc, char* argv[] )
 
     else if ( impl == IMPL_XLOOPS_REG )
       dither_xloops_reg( &dest[0], image, nrows, ncols );
-
+/*
     else if ( impl == IMPL_XLOOPS_REG_OPT )
       dither_xloops_reg_opt( &dest[0], image, nrows, ncols );
 
     else if ( impl == IMPL_XLOOPS_MEM )
       dither_xloops_mem( &dest[0], image, nrows, ncols );
+*/
   }
 
   set_stats_en(false);

@@ -25,6 +25,7 @@
 
 #include <iostream>
 #include <math.h>
+#include <stdint.h>
 #include "pbbs-common-parallel.h"
 #include "pbbs-common-sequence.h"
 #include "pbbs-common-utils.h"

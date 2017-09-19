@@ -128,8 +128,9 @@ namespace stdx {
       // Try running the given function num_trials times
 
       timer.start();
-      for ( int i = 0; i < num_trials; i++ )
+      for ( int i = 0; i < num_trials; i++ ) {
         func();
+      }
       timer.stop();
 
       // If the time to run this number of trials is greater than the
@@ -137,14 +138,17 @@ namespace stdx {
       // should be good enough. Otherwise double the number of trials
       // and try again.
 
-      if ( timer.get_elapsed() > (get_resolution() * significance) )
+      if ( timer.get_elapsed() > (get_resolution() * significance) ) {
         done = true;
-      else
+      }
+      else {
         num_trials = num_trials * 2;
+      }
 
-      if ( num_trials > (std::numeric_limits<int>::max()/4) )
+      if ( num_trials > (std::numeric_limits<int>::max()/4) ) {
         STDX_THROW( stdx::ERequiredTrialsTooLarge,
                     "Number of required trials exceeds max int size" );
+      }
 
     }
     return num_trials;

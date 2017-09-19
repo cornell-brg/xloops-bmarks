@@ -45,13 +45,16 @@ AC_CANONICAL_HOST
 #-------------------------------------------------------------------------
 
 # Check for C compiler and set default C compiler flags
-AC_PROG_CC
-AC_SUBST([CFLAGS],["-Wall -g -O3"])
+AC_PROG_CC()
+#AC_SUBST([CFLAGS],["-Wall -g -O3"])
+AC_SUBST([CFLAGS],["-Wall -g -O3  -D_RISCV_ARCH"]) # -mllvm -disable-lsr -no-integrated-as -static"])
 
 # Check for C++ compiler and set default C++ compiler flags
-AC_PROG_CXX
+AC_PROG_CXX()
 #AC_SUBST([CXXFLAGS],["-Wall -g -O3"])
-AC_SUBST([CXXFLAGS],["-Wall -g -O3 -D_MIPS_ARCH_LLFU"])
+#AC_SUBST([CXXFLAGS],["-Wall -g -O3 -D_MIPS_ARCH_LLFU"])
+#AC_SUBST([CXXFLAGS],["-Wall -g -O3 -D_RISCV_ARCH"])
+AC_SUBST([CXXFLAGS],["-Wall -g -O3 -D_RISCV_ARCH"]) # -mllvm -disable-lsr -no-integrated-as -static"])
 
 # Check for tools to build libraries
 AC_CHECK_TOOL([AR],[ar])
@@ -133,10 +136,10 @@ MCPPBS_INCLUDE_INTERNAL([symm])
 MCPPBS_INCLUDE_INTERNAL([heapsort])
 MCPPBS_INCLUDE_INTERNAL([knapsack])
 MCPPBS_INCLUDE_INTERNAL([bintree])
-MCPPBS_INCLUDE_INTERNAL([pbbs-common])
-MCPPBS_INCLUDE_INTERNAL([pbbs-mm])
+#MCPPBS_INCLUDE_INTERNAL([pbbs-common])
+#MCPPBS_INCLUDE_INTERNAL([pbbs-mm])
 MCPPBS_INCLUDE_INTERNAL([quicksort])
-MCPPBS_INCLUDE_INTERNAL([pbbs-knn])
+#MCPPBS_INCLUDE_INTERNAL([pbbs-knn])
 
 #-------------------------------------------------------------------------
 # MCPPBS subproject libraries to install

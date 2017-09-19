@@ -186,28 +186,38 @@ $(2)_junk += $$($(2)_asm_deps) $$($(2)_asm_objs)
 # Build the object files from C sources for this subproject
 
 $(2)_c_srcs := $$(filter %.c, $$($(2)_srcs))
+$(2)_c_asms := $$(patsubst %.c, %.s, $$($(2)))
 $(2)_c_objs := $$(patsubst %.c, %.o, $$($(2)_c_srcs))
 $(2)_c_deps := $$(patsubst %.c, %.d, $$($(2)_c_srcs))
 
-$$($(2)_c_objs) : %.o : %.c
-	$(COMPILE_C) $$($(2)_cppflags) -c $$<
+$$($(2)_c_asms) : %.s : %.c
+	$(COMPILE_C) $$($(2)_cppflags) -S $$<
+
+$$($(2)_c_objs) : %.o : %.s
+	$(LD_C) -c $$<
 
 $(2)_objs += $$($(2)_c_objs)
+$(2)_asms += $$($(2)_c_asms)
 $(2)_deps += $$($(2)_c_deps)
-$(2)_junk += $$($(2)_c_deps) $$($(2)_c_objs)
+$(2)_junk += $$($(2)_c_deps) $$($(2)_c_objs) $$($(2)_c_asms) 
 
 # Build the object files from C++ sources for this subproject
 
 $(2)_cxx_srcs := $$(filter %.cc, $$($(2)_srcs))
+$(2)_cxx_asms := $$(patsubst %.cc, %.s, $$($(2)_cxx_srcs))
 $(2)_cxx_objs := $$(patsubst %.cc, %.o, $$($(2)_cxx_srcs))
 $(2)_cxx_deps := $$(patsubst %.cc, %.d, $$($(2)_cxx_srcs))
 
-$$($(2)_cxx_objs) : %.o : %.cc
-	$(COMPILE_CXX) $$($(2)_cppflags) -c $$<
+$$($(2)_cxx_asms) : %.s : %.cc
+	$(COMPILE_CXX) $$($(2)_cppflags) -S $$<
+
+$$($(2)_cxx_objs) : %.o : %.s
+	$(LD_CXX) -c $$<
 
 $(2)_objs += $$($(2)_cxx_objs)
+$(2)_asms += $$($(2)_cxx_asms)
 $(2)_deps += $$($(2)_cxx_deps)
-$(2)_junk += $$($(2)_cxx_deps) $$($(2)_cxx_objs)
+$(2)_junk += $$($(2)_cxx_deps) $$($(2)_cxx_objs) $$($(2)_cxx_asms)
 
 # Build a library for this subproject
 
@@ -228,12 +238,16 @@ $(2)_link_prereqs     := $$($(2)_libname) $$($(2)_intdeps_libnames)
 # Build unit tests
 
 $(2)_test_objs := $$(patsubst %.cc,   %.o,    $$($(2)_test_srcs))
+$(2)_test_asms := $$(patsubst %.cc,   %.s,    $$($(2)_test_srcs))
 $(2)_test_deps := $$(patsubst %.cc,   %.d,    $$($(2)_test_srcs))
 $(2)_test_exes := $$(patsubst %.t.cc, %-utst, $$($(2)_test_srcs))
 $(2)_test_outs := $$(patsubst %,      %.out,  $$($(2)_test_exes))
 
-$$($(2)_test_objs) : %.o : %.cc
-	$(COMPILE_CXX) $$($(2)_cppflags) $(utst_cppflags) -c $$<
+$$($(2)_test_asms) : %.s : %.cc
+	$(COMPILE_CXX) $$($(2)_cppflags) $(utst_cppflags) -S $$<
+
+$$($(2)_test_objs) : %.o : %.s
+	$(LD_CXX) -c $$<
 
 $$($(2)_test_exes) : %-utst : %.t.o $$($(2)_link_prereqs) $(utst_libname) 
 	$(LINK_CXX) $$($(2)_ldflags) $(utst_ldflags) -o $$@ $$< \
@@ -241,7 +255,7 @@ $$($(2)_test_exes) : %-utst : %.t.o $$($(2)_link_prereqs) $(utst_libname)
 
 $(2)_deps += $$($(2)_test_deps)
 $(2)_junk += \
-	$$($(2)_test_deps) $$($(2)_test_objs) \
+	$$($(2)_test_deps) $$($(2)_test_objs) $$($(2)_test_asms) \
   $$($(2)_test_exes) *.junk-dat
 
 # Run unit tests
@@ -256,11 +270,15 @@ $(2)_junk += $$($(2)_test_outs)
 $(2)_prog_c_srcs := $$(filter %.c, $$($(2)_prog_srcs))
 $(2)_prog_c_srcs += $$(filter %.c, $$($(2)_install_prog_srcs))
 $(2)_prog_c_objs := $$(patsubst %.c, %.o, $$($(2)_prog_c_srcs))
+$(2)_prog_c_asms := $$(patsubst %.c, %.s, $$($(2)_prog_c_srcs))
 $(2)_prog_c_deps := $$(patsubst %.c, %.d, $$($(2)_prog_c_srcs))
 $(2)_prog_c_exes := $$(patsubst %.c, %,   $$($(2)_prog_c_srcs))
 
-$$($(2)_prog_c_objs) : %.o : %.c
-	$(COMPILE_C) $$($(2)_cppflags) -c $$<
+$$($(2)_prog_c_asms) : %.s : %.c
+	$(COMPILE_C) $$($(2)_cppflags) -S $$<
+
+$$($(2)_prog_c_objs) : %.o : %.s
+	$(LD_C) -c $$<
 
 $$($(2)_prog_c_exes) : % : %.o $$($(2)_link_prereqs)
 	$(LINK_C) $$($(2)_ldflags) -o $$@ $$< $$($(2)_libs) 
@@ -268,18 +286,23 @@ $$($(2)_prog_c_exes) : % : %.o $$($(2)_link_prereqs)
 $(2)_exes += $$($(2)_prog_c_exes) 
 $(2)_deps += $$($(2)_prog_c_deps)
 $(2)_junk += \
-  $$($(2)_prog_c_objs) $$($(2)_prog_c_deps) $$($(2)_prog_c_exes)
+  $$($(2)_prog_c_objs) $$($(2)_prog_c_deps) $$($(2)_prog_c_exes) \
+  $$($(2)_prog_c_asms)
 
 # Build C++ programs
 
 $(2)_prog_cxx_srcs := $$(filter %.cc, $$($(2)_prog_srcs))
 $(2)_prog_cxx_srcs += $$(filter %.cc, $$($(2)_install_prog_srcs))
 $(2)_prog_cxx_objs := $$(patsubst %.cc, %.o, $$($(2)_prog_cxx_srcs))
+$(2)_prog_cxx_asms := $$(patsubst %.cc, %.s, $$($(2)_prog_cxx_srcs))
 $(2)_prog_cxx_deps := $$(patsubst %.cc, %.d, $$($(2)_prog_cxx_srcs))
 $(2)_prog_cxx_exes := $$(patsubst %.cc, %,   $$($(2)_prog_cxx_srcs))
 
-$$($(2)_prog_cxx_objs) : %.o : %.cc
-	$(COMPILE_CXX) $$($(2)_cppflags) -c $$<
+$$($(2)_prog_cxx_asms) : %.s : %.cc
+	$(COMPILE_CXX) $$($(2)_cppflags) -S $$<
+
+$$($(2)_prog_cxx_objs) : %.o : %.s
+	$(LD_CXX) -c $$<
 
 $$($(2)_prog_cxx_exes) : % : %.o $$($(2)_link_prereqs)
 	$(LINK_CXX) $$($(2)_ldflags) -o $$@ $$< $$($(2)_libs) 
@@ -287,7 +310,8 @@ $$($(2)_prog_cxx_exes) : % : %.o $$($(2)_link_prereqs)
 $(2)_exes += $$($(2)_prog_cxx_exes) 
 $(2)_deps += $$($(2)_prog_cxx_deps)
 $(2)_junk += \
-  $$($(2)_prog_cxx_objs) $$($(2)_prog_cxx_deps) $$($(2)_prog_cxx_exes)
+  $$($(2)_prog_cxx_objs) $$($(2)_prog_cxx_deps) $$($(2)_prog_cxx_exes) \
+  $$($(2)_prog_cxx_asms)
 
 # Install subproject's header (.h), inline (.inl), source (.cc), and
 # package config (.pc) files if this subproject is on the sproj_install

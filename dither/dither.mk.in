@@ -13,8 +13,8 @@ dither_hdrs = \
   dither-scalar.h \
   dither-xloops.h \
   dither-xloops-reg.h \
-  dither-xloops-reg-opt.h \
-  dither-xloops-mem.h \
+#  dither-xloops-mem.h \
+#  dither-xloops-reg-opt.h \
 
 dither_srcs = \
 
@@ -33,15 +33,15 @@ dither_clang_no_lsr_srcs = \
 
 dither_llc_srcs = \
   dither-xloops-reg.cc \
-  dither-xloops-reg-opt.cc \
-  dither-xloops-mem.cc \
+#  dither-xloops-mem.cc \
+#  dither-xloops-reg-opt.cc \
 
 dither_llc_lls = \
   dither-xloops-reg.ll \
 
 dither_clang_asm_srcs = \
-  dither-xloops-reg-opt.s \
-  dither-xloops-mem.s \
+#  dither-xloops-reg-opt.s \
+#  dither-xloops-mem.s \
 
 dither_install_prog_srcs = \
   dither.cc \

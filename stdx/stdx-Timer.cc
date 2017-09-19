@@ -4,7 +4,7 @@
 
 #include "stdx-Timer.h"
 #include <iostream>
-
+#include <stdio.h>
 //------------------------------------------------------------------------
 // Choose timing implementation
 //------------------------------------------------------------------------
@@ -18,6 +18,8 @@
 
 #ifdef _MIPS_ARCH_MAVEN
 #include <sys/timex.h>
+#elif _RISCV_ARCH
+//#include <sys/timex.h>
 #elif defined STDX_HAVE_GETRUSAGE
 #include <sys/resource.h>
 #else
@@ -36,6 +38,10 @@ namespace {
       psecs = get_cycles() * (1000000000000LL / get_cycles_per_sec());
 
     // Otherwise use getrusage if we have it
+    #elif  _RISCV_ARCH
+      //psecs = get_cycles() * (1000000000000LL / get_cycles_per_sec());
+//      psecs = clock() * (1000000000000LL / CLOCKS_PER_SEC);
+
     #elif defined STDX_HAVE_GETRUSAGE
 
       // shreesha : replaced RUSAGE_SELF to RUSAGE_THREAD as RUSAGE_THREAD
@@ -91,10 +97,13 @@ namespace stdx {
 
   Timer::ElapsedTime Timer::get_elapsed() const
   {
-    if ( !m_running )
+   /*
+    if ( !m_running ) {
       return ElapsedTime( m_psecs );
-
+    }
     return ElapsedTime( get_current_psecs() - m_psecs );
+   */
+    return ElapsedTime( m_psecs );
   }
 
   //----------------------------------------------------------------------
@@ -104,7 +113,7 @@ namespace stdx {
   Timer::ElapsedTime Timer::get_resolution()
   {
     static ElapsedTime s_resolution = ElapsedTime();
-
+/*
     // On the first time we call this function we need to figure out
     // what the timer resolution is.
     if ( s_resolution == ElapsedTime() ) {
@@ -129,8 +138,9 @@ namespace stdx {
       timer.stop();
       s_resolution = timer.get_elapsed() * 2;
     }
-
+*/
     return s_resolution;
+
   }
 
 }

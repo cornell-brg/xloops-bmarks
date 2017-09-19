@@ -54,6 +54,7 @@
 #include <iostream>
 #include <iomanip>
 #include <vector>
+#include <stdint.h>
 #include <stdio.h>
 
 //------------------------------------------------------------------------
@@ -208,7 +209,7 @@ int main( int argc, char* argv[] )
     std::vector<short> dest(len,0);
     if ( !impl_all ) {
       mibench_adpcmdec::adpcm_state state;
-      impl_ptr->func_ptr( &src[0], &dest[0], len, &state );
+      impl_ptr->func_ptr( (char*)&src[0], &dest[0], len, &state );
       verify_results( impl_ptr->str, &dest[0], &ref[0], len );
     }
     else {
@@ -217,7 +218,7 @@ int main( int argc, char* argv[] )
         dest.clear();
         dest.resize(len);
         mibench_adpcmdec::adpcm_state state;
-        impl_ptr->func_ptr( &src[0], &dest[0], len, &state );
+        impl_ptr->func_ptr( (char*)&src[0], &dest[0], len, &state );
         verify_results( impl_ptr->str, &dest[0], &ref[0], len );
         impl_ptr++;
       }
@@ -232,7 +233,7 @@ int main( int argc, char* argv[] )
   mibench_adpcmdec::adpcm_state state;
   std::vector<short> dest(len,0);
   if ( warmup )
-    impl_ptr->func_ptr( &src[0], &dest[0], len, &state );
+    impl_ptr->func_ptr( (char*)&src[0], &dest[0], len, &state );
 
   // reset values
   dest.clear();
@@ -245,7 +246,7 @@ int main( int argc, char* argv[] )
   set_stats_en(true);
 
   for ( int i = 0; i < ntrials; i++ )
-    impl_ptr->func_ptr( &src[0], &dest[0], len, &state );
+    impl_ptr->func_ptr( (char*)&src[0], &dest[0], len, &state );
 
   set_stats_en(false);
   timer.stop();

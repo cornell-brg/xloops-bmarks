@@ -13,7 +13,7 @@ int gcd( int a, int b )
 {
   if ( a == 0 )
     return b;
-
+  
   return gcd( b % a, a );
 }
 
@@ -24,14 +24,15 @@ void trial()
 
 UTST_AUTO_TEST_CASE( TestBasic )
 {
-  UTST_LOG_VAR( stdx::Timer::get_resolution() );
+  //UTST_LOG_VAR( stdx::Timer::get_resolution() );
   int num_trials = stdx::Timer::estimate_required_trials( &trial, 10 );
   UTST_LOG_VAR( num_trials );
 
   stdx::Timer timer;
   timer.start();
-  for ( int i = 0; i < num_trials*10; i++ )
+  for ( int i = 0; i < num_trials*10; i++ ) {
     trial();
+  }
   timer.stop();
   stdx::Timer::ElapsedTime time_per_trial
     = timer.get_elapsed()/(num_trials*10);

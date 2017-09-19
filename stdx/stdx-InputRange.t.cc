@@ -61,7 +61,7 @@ UTST_AUTO_TEST_CASE( TestCopyIf )
   input_vec.at(4) = 4;
 
   vector<int> test_vec;
-  copy_if( input_vec.begin(), input_vec.end(), back_inserter(test_vec),
+  stdx::copy_if( input_vec.begin(), input_vec.end(), back_inserter(test_vec),
            bind2nd(greater<int>(),2) );
 
   vector<int> correct_vec(2);

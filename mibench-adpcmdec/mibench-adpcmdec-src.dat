@@ -1,6 +1,6 @@
 // Source Dataset for MiBench ADPCM decoder kernel (derived from "small.adpcm")
 
-char src [] = {
+int8_t src [] = {
   0,
   -14,
   15,

@@ -101,6 +101,11 @@ inline bool LCAS(long *ptr, long oldv, long newv) {
   /* Note that sete sets a 'byte' not the word */
   // TODO: implement in mips
   #ifndef _MIPS_ARCH_MAVEN
+  /* nitish: commenting out x86 based compare and swap 
+     We need to implement out own version for RISCV
+     Right now LCAS will not lead to thread safe 
+     implementation.
+
   __asm__ __volatile__ (
                 "  lock\n"
                 "  cmpxchgq %2,%1\n"
@@ -108,6 +113,10 @@ inline bool LCAS(long *ptr, long oldv, long newv) {
                 : "=q" (ret), "=m" (*ptr)
                 : "r" (newv), "m" (*ptr), "a" (oldv)
                 : "memory");
+  */
+  
+  *ptr = newv;
+  ret  = 1;
   #else
   // TODO: the following is a sequential implementation:
   assert( false && "LCAS not defined for PISA!" );
@@ -124,6 +133,12 @@ inline bool SCAS(int *ptr, int oldv, int newv) {
   unsigned char ret;
   /* Note that sete sets a 'byte' not the word */
   #ifndef _MIPS_ARCH_MAVEN
+  /* nitish: commenting out x86 based compare and swap 
+     We need to implement out own version for RISCV
+     Right now LCAS will not lead to thread safe 
+     implementation.
+
+
   __asm__ __volatile__ (
                 "  lock\n"
                 "  cmpxchgl %2,%1\n"
@@ -131,7 +146,9 @@ inline bool SCAS(int *ptr, int oldv, int newv) {
                 : "=q" (ret), "=m" (*ptr)
                 : "r" (newv), "m" (*ptr), "a" (oldv)
                 : "memory");
-
+  */
+  *ptr = newv;
+  ret  = 1;
   #else
   // TODO: the following is a sequential implementation:
   // *ptr = newv;
