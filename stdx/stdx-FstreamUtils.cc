@@ -41,7 +41,7 @@ namespace stdx {
   //----------------------------------------------------------------------
 
   DefaultStdinFstream::DefaultStdinFstream()
-   : m_is_ptr(0)
+   : std::istream( 0 ), m_is_ptr(0)
   { }
 
   DefaultStdinFstream::DefaultStdinFstream( const std::string& name )
