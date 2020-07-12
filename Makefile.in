@@ -68,7 +68,7 @@ install_pkcs_dir := $(DESTDIR)/share/pkgconfig
 install_exes_dir := $(DESTDIR)/bin
 
 #-------------------------------------------------------------------------
-# Programs and flags 
+# Programs and flags
 #-------------------------------------------------------------------------
 
 # Standard flags
@@ -145,7 +145,7 @@ utst_libs     ?= @utst_libs@
 # subprojects defining a certain set of make variables which are all
 # prefixed with the subproject name. Since subproject names can have
 # dashes in them (and the make variables are assumed to only use
-# underscores) the template takes two arguments - one with the regular 
+# underscores) the template takes two arguments - one with the regular
 # subproject name and one with dashes replaced with underscores.
 #
 # Arguments:
@@ -200,14 +200,18 @@ $(2)_junk += $$($(2)_c_deps) $$($(2)_c_objs)
 
 $(2)_cxx_srcs := $$(filter %.cc, $$($(2)_srcs))
 $(2)_cxx_objs := $$(patsubst %.cc, %.o, $$($(2)_cxx_srcs))
+$(2)_cxx_lls  := $$(patsubst %.cc, %.ll, $$($(2)_cxx_srcs))
 $(2)_cxx_deps := $$(patsubst %.cc, %.d, $$($(2)_cxx_srcs))
 
 $$($(2)_cxx_objs) : %.o : %.cc
 	$(COMPILE_CXX) $$($(2)_cppflags) -c $$<
 
+$$($(2)_cxx_lls) : %.ll : %.cc
+	$(COMPILE_CXX) $$($(2)_cppflags) -c -emit-llvm -S $$<
+
 $(2)_objs += $$($(2)_cxx_objs)
 $(2)_deps += $$($(2)_cxx_deps)
-$(2)_junk += $$($(2)_cxx_deps) $$($(2)_cxx_objs)
+$(2)_junk += $$($(2)_cxx_deps) $$($(2)_cxx_objs) $$($(2)_cxx_lls)
 
 # Build a library for this subproject
 
@@ -235,7 +239,7 @@ $(2)_test_outs := $$(patsubst %,      %.out,  $$($(2)_test_exes))
 $$($(2)_test_objs) : %.o : %.cc
 	$(COMPILE_CXX) $$($(2)_cppflags) $(utst_cppflags) -c $$<
 
-$$($(2)_test_exes) : %-utst : %.t.o $$($(2)_link_prereqs) $(utst_libname) 
+$$($(2)_test_exes) : %-utst : %.t.o $$($(2)_link_prereqs) $(utst_libname)
 	$(LINK_CXX) $$($(2)_ldflags) $(utst_ldflags) -o $$@ $$< \
     $$($(2)_libs) $(utst_libs)
 
@@ -263,9 +267,9 @@ $$($(2)_prog_c_objs) : %.o : %.c
 	$(COMPILE_C) $$($(2)_cppflags) -c $$<
 
 $$($(2)_prog_c_exes) : % : %.o $$($(2)_link_prereqs)
-	$(LINK_C) $$($(2)_ldflags) -o $$@ $$< $$($(2)_libs) 
+	$(LINK_C) $$($(2)_ldflags) -o $$@ $$< $$($(2)_libs)
 
-$(2)_exes += $$($(2)_prog_c_exes) 
+$(2)_exes += $$($(2)_prog_c_exes)
 $(2)_deps += $$($(2)_prog_c_deps)
 $(2)_junk += \
   $$($(2)_prog_c_objs) $$($(2)_prog_c_deps) $$($(2)_prog_c_exes)
@@ -282,9 +286,9 @@ $$($(2)_prog_cxx_objs) : %.o : %.cc
 	$(COMPILE_CXX) $$($(2)_cppflags) -c $$<
 
 $$($(2)_prog_cxx_exes) : % : %.o $$($(2)_link_prereqs)
-	$(LINK_CXX) $$($(2)_ldflags) -o $$@ $$< $$($(2)_libs) 
+	$(LINK_CXX) $$($(2)_ldflags) -o $$@ $$< $$($(2)_libs)
 
-$(2)_exes += $$($(2)_prog_cxx_exes) 
+$(2)_exes += $$($(2)_prog_cxx_exes)
 $(2)_deps += $$($(2)_prog_cxx_deps)
 $(2)_junk += \
   $$($(2)_prog_cxx_objs) $$($(2)_prog_cxx_deps) $$($(2)_prog_cxx_exes)
@@ -342,12 +346,15 @@ install-$(1) : install-libs-$(1) install-exes-$(1)
 clean-$(1) :
 	rm -rf $$($(2)_junk)
 
-.PHONY : all-$(1) check-$(1) install-$(1) clean-$(1)
+llvmasm-$(1) : $$($(2)_cxx_lls)
+
+.PHONY : all-$(1) check-$(1) install-$(1) clean-$(1) llvmasm-$(1)
 
 # Update running variables
 
 libs += $$($(2)_libname)
 objs += $$($(2)_objs)
+lls  += $$($(2)_cxx_lls)
 exes += $$($(2)_exes)
 outs += $$($(2)_test_outs)
 junk += $$($(2)_junk)
@@ -378,6 +385,16 @@ check : $(outs)
     -e'Segementation' -e'ERROR' $^; echo
 
 .PHONY : check
+
+#-------------------------------------------------------------------------
+# Generate LLVM IR files
+#-------------------------------------------------------------------------
+
+llvmasm : $(lls)
+	mkdir llvm-asm
+	mv *.ll llvm-asm/.
+
+.PHONY : llvmasm
 
 #-------------------------------------------------------------------------
 # Installation
@@ -430,7 +447,7 @@ dist_junk += \
 # Distribution
 #-------------------------------------------------------------------------
 # The distribution tarball is named project-ver.tar.gz and it includes
-# both enabled and disabled subprojects. 
+# both enabled and disabled subprojects.
 
 dist_files = \
   $(sprojs_internal) \
